@@ -1,5 +1,10 @@
 # Live Streaming a DJI drone into Run AI for near real time object detection with YOLO
 
+<p align="left">
+  <img src="images/runai-icon.jpg" alt="blender" width="100" />
+  <img src="images/drone.png" alt="blender" width="100" />
+</p>
+
 This project provides a real-time video streaming application using a drone, with live object detection powered by the YOLO model. The system is built to stream the video feed from the drone, process the stream using YOLO, and display both the raw and annotated streams on a web interface. The application leverages Kubernetes, Streamlit, and Grafana for streaming, inference, and monitoring.
 
 ## Features
