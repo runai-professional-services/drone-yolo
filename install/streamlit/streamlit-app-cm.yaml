@@ -1,0 +1,86 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streamlit-config
+  namespace: runai-drone
+data:
+  app.py: |
+    import streamlit as st
+    import streamlit.components.v1 as components
+    import requests
+    import time
+
+
+    st.set_page_config(page_title="Run:AI streaming Inference Demo", page_icon="https://media.istockphoto.com/id/1269942418/vector/quadcopter-icon-flying-drone-logo-isolated-on-white-background.jpg?s=612x612&w=0&k=20&c=DFJWbf_jlUW8iD_aWWkjw48mJKK7igOAiuFinBbeoJI=")
+
+
+    # Inject CSS to reduce spacing
+    st.markdown("""
+        <style>
+        .video-js {
+            margin-bottom: 0px !important;  /* Remove margin below the video */
+        }
+        iframe {
+            margin-top: -20px !important;  /* Reduce space above the iframe */
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+    # Define your available streams
+    streams = {
+        "Live Stream": "https://hls.whitehouse-hackathon.runailabs-cs.com/hls/test.m3u8",
+        "Annotated Stream": "https://hls.whitehouse-hackathon.runailabs-cs.com/hls/output.m3u8",
+    }
+
+    col1, col2 = st.columns([1, 8], vertical_alignment="bottom")
+
+    with col1:
+        st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQC4hqUL36V6tTvVfp8rkrgcGvtyJ1IoAqNZw&s", width=60)
+
+    with col2:    
+        st.header("Drone Streaming Demo with YOLO",  )
+
+
+    selected_stream = st.selectbox("Select Stream", list(streams.keys()))
+
+    # Get the selected stream's HLS URL
+    hls_url = streams[selected_stream]
+
+    # Continuously check if the stream is live
+    stream_available = False  # Set a flag to check stream availability
+    while not stream_available:
+        try:
+            # Show spinner while checking the stream
+            with st.spinner("Waiting for drone to connect..."):
+                response = requests.head(hls_url, timeout=5)
+                if response.status_code == 200:
+                    # If the stream is live, display the video player
+                    video_html = f"""
+                        <link href="https://vjs.zencdn.net/7.11.4/video-js.css" rel="stylesheet" />
+                        <video-js id="hls-video" class="vjs-default-skin" controls autoplay width="700" height="400">
+                            <source src="{hls_url}" type="application/x-mpegURL">
+                        </video-js>
+                        <script src="https://vjs.zencdn.net/7.11.4/video.js"></script>
+                        <script>
+                            var player = videojs('hls-video', {{
+                                controlBar: {{
+                                    volumePanel: false  // Disable the volume slider
+                                }}
+                            }});
+                            player.play();
+                        </script>
+                    """
+                    components.html(video_html, height=500)
+                    stream_available = True  # Set the flag to True to exit the loop
+                else:
+                    # If the stream is not available, wait and retry
+                    time.sleep(10)  # Wait for 10 seconds before retrying
+        except requests.exceptions.RequestException:
+            # Handle network errors or timeouts and retry
+            time.sleep(10)
+
+    # graph_2 = f"""
+    # <iframe src="https://grafana.whitehouse-hackathon.runailabs-cs.com/d-solo/ae1nyaukoevpcd/gpu-dash?orgId=1&theme=dark&panelId=1&__feature.dashboardSceneSolo&from=now-1h&to=now&refresh=10s" width="800" height="200" frameborder="0"></iframe>
+    # """
+    # components.html(graph_2, height=200)

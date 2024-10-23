@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hls
+  namespace: runai-drone
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: hls.whitehouse-hackathon.runailabs-cs.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rtmp-server
+                port:
+                  number: 8080

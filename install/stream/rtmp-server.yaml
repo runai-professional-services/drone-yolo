@@ -1,0 +1,84 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rtmp-server
+  namespace: runai-drone
+  annotations:
+    reloader.stakater.com/auto: "true"
+  labels:
+    app: rtmp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rtmp-server
+  template:
+    metadata:
+      labels:
+        app: rtmp-server
+    spec:
+      schedulerName: runai-scheduler
+      containers:
+      - name: yolo
+        image: dswhitehouse/drone:0.9
+        command: ["python3", "/app/yolo.py"]
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            nvidia.com/gpu: "1"
+            memory: "4Gi"
+            cpu: "4"
+        volumeMounts:
+        - name: hls-storage
+          mountPath: /tmp/hls
+        - name: yolo-script-volume
+          mountPath: /app/yolo.py
+          subPath: yolo.py
+      - name: rtmp
+        image: dswhitehouse/rtmp-server:0.1  
+        ports:
+        - containerPort: 1935
+        - containerPort: 8080
+        volumeMounts:
+        - name: hls-storage
+          mountPath: /tmp/hls
+        - name: config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: certs
+          mountPath: "/etc/nginx/certs"
+          readOnly: true
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "4"
+      - name: nginx-exporter
+        image: 'nginx/nginx-prometheus-exporter:1.3'
+        args:
+          - '--nginx.scrape-uri=http://localhost:8080/stats'
+          - '--nginx.scrape-uri=http://localhost:8080/rtmp' 
+        resources:
+          limits:
+            memory: 128Mi
+            cpu: 500m
+        ports:
+          - containerPort: 9113
+      volumes:
+      - name: hls-storage
+        emptyDir:
+          medium: "Memory"
+      - name: config
+        configMap:
+          name: rtmp-config
+      - name: yolo-script-volume
+        configMap:
+          name: yolo-script
+      - name: certs
+        secret:
+          secretName: runai-backend-tls 
