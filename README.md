@@ -29,3 +29,11 @@ To run this project, ensure the following dependencies are installed:
 
 - **Run AI** cluster with GPU nodes (for YOLO inference)
 - **Host Based Routing Enabled** to correctly expose the endpoints
+
+## Install
+
+- Clone this repo
+- Change into the "yolo-drone" dir
+- Modify the values.yaml file
+- Helm install with `helm install drone-stream .`
+ 
