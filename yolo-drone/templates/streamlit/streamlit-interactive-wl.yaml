@@ -1,0 +1,39 @@
+apiVersion: run.ai/v2alpha1
+kind: InteractiveWorkload
+metadata:
+  name: inference-ui
+  namespace: runai-{{ .Values.project.name }}
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  backoffLimit:
+    value: 6
+  command:
+    value: 'streamlit run /app/app.py'
+  configMapVolumes:
+    items:
+      config-map:
+        value:
+          mountPath: /app
+          name: streamlit-config
+  cpu:
+    value: '0.1'
+  exposedUrls:
+    items:
+      url:
+        value:
+          containerPort: 8501
+  gpuDevices:
+    value: 0
+  image:
+    value: {{ .Values.image.streamlit  }}
+  imagePullPolicy:
+    value: IfNotPresent
+  labels:
+    items:
+      run.ai/control-plane-managed:
+        value: 'true'
+  memory:
+    value: 100M
+  name:
+    value: inference-ui

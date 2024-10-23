@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rtmp-config
+  namespace: runai-{{ .Values.project.name }}
+data:
+  nginx.conf: |
+        worker_processes auto;
+        events {
+            worker_connections 1024;
+        }
+
+        http {
+            include       mime.types;
+            default_type  application/octet-stream;
+
+            server {
+                listen 8080;
+
+                # Serve HLS fragments with correct MIME types and CORS headers
+                location /hls {
+                    alias /tmp/hls/;  # Location of the HLS files
+                    add_header Cache-Control no-cache;
+                    add_header Access-Control-Allow-Origin *;  # Allow CORS for cross-origin access
+                    add_header Access-Control-Allow-Methods 'GET, OPTIONS';  # Allowed methods
+                    add_header Access-Control-Allow-Headers 'Origin, X-Requested-With, Content-Type, Accept';
+
+                    types {
+                        application/vnd.apple.mpegurl m3u8;  # MIME type for HLS playlist
+                        video/mp2t ts;  # MIME type for HLS segments
+                    }
+                }
+
+                # Status page for monitoring RTMP streams
+                location /stats {
+                    stub_status;
+                }
+
+
+                # Default response for root access
+                location / {
+                    return 200 'RTMP Server is running';
+                }
+
+                location /rtmp {
+                    rtmp_stat all;
+                    allow all;
+                    add_header Refresh "3; $request_uri";
+                    rtmp_stat_stylesheet stat.xsl;
+                }
+
+                location /stat.xsl {
+                    root /var/www/html/stat.xsl;
+                }
+            }
+        }
+
+        rtmp {
+            server {
+                listen 1935;
+                chunk_size 4096;
+                ping 3m;
+                ping_timeout 30s;
+                application live {
+                    live on;
+                    record off;
+                    allow publish all;
+                    allow play all;
+
+                    # HLS configuration
+                    hls on;
+                    hls_path /tmp/hls;  # Path to store HLS segments and playlist
+                    hls_fragment 5s;  # Duration of each segment
+                    hls_playlist_length 60s;  # Length of the HLS playlist
+                }
+            }
+        }

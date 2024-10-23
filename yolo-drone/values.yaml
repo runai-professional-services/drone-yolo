@@ -1,0 +1,10 @@
+cluster:
+  domain: "whitehouse-hackathon.runailabs-cs.com"
+
+project:
+  name: "drone"
+
+image:
+  streamlit: dswhitehouse/streamlit:0.1
+  rtmp: dswhitehouse/rtmp-server:0.1
+  drone: dswhitehouse/drone:0.9

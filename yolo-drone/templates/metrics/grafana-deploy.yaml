@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboards
+  namespace: runai-{{ .Values.project.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          securityContext:
+            runAsUser: 0
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: grafana-datasource
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: grafana-dashboards
+              mountPath: /var/lib/grafana/dashboards
+            - name: grafana-dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+          env:
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Viewer"
+            - name: GF_DASHBOARDS_JSON_ENABLED
+              value: "true"
+            - name: GF_DASHBOARDS_JSON_PATH
+              value: "/var/lib/grafana/dashboards"
+            - name: GF_PROVISIONING_PATH
+              value: /etc/grafana/provisioning
+      volumes:
+        - name: grafana-datasource
+          configMap:
+            name: grafana-datasource
+        - name: grafana-dashboards
+          configMap:
+            name: grafana-dashboard
+        - name: grafana-dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider

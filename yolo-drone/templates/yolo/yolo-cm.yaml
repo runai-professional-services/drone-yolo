@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yolo-script
+  namespace: runai-{{ .Values.project.name }}
+data:
+  yolo.py: |
+    # %%
+    import cv2
+    import os
+    import io
+    import time
+    import subprocess
+    from datetime import datetime
+    from ultralytics import YOLO
+    from PIL import Image
+
+    # %%
+    # RTMP stream source URL
+    hsl_url_input = "http://rtmp-server:8080/hls/test.m3u8"
+    hsl_url_output = "http://rtmp-server:8080/hls/output.m3u8"
+
+    # %%
+    # Load the YOLO model
+    model = YOLO("yolo11x.pt").to("cuda") 
+    model = YOLO("yolo11m.pt").to("cuda") 
+
+    # %%
+    # Open the HSL input stream and wait if not connected
+    while True:
+        cap = cv2.VideoCapture(hsl_url_input)
+        if cap.isOpened():
+            print("Stream successfully connected.")
+            break
+        print("Waiting for drone to connect...")
+        cap.release()
+        time.sleep(5)
+
+    # %%
+    # Get the frame width and height dynamically from the input stream
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print(f"Frame dimensions: {frame_width}x{frame_height} @ {fps} FPS")
+
+    # %%
+    # FFmpeg command to stream the processed frames back to HLS
+    ffmpeg_command = [
+        'ffmpeg',
+        '-y',  # Overwrite output files
+        '-f', 'rawvideo',  # Input format: raw video
+        '-pix_fmt', 'bgr24',  # Pixel format: BGR, 24 bits per pixel (OpenCV default)
+        '-s', f'{frame_width}x{frame_height}',  # Frame size
+        '-r', str(int(fps)),  # Frame rate
+        '-i', '-',  # Input from stdin (the processed frames)
+        '-vf', 'format=yuv420p',  # Convert to YUV420p (a pixel format expected by HLS)
+        '-c:v', 'libx264',  # Codec for video encoding
+        '-preset', 'fast',  # Preset for encoding speed/quality trade-off
+        '-pix_fmt', 'yuv420p',  # Pixel format for HLS (YUV420p is widely compatible)
+        '-f', 'hls',  # Output format: HLS
+        '-hls_time', '5',  # Duration of each HLS segment (in seconds)
+        '-hls_list_size', '10',  # Number of segments in the playlist
+        '-hls_flags', 'delete_segments',  # Automatically delete old segments
+        '-hls_segment_filename', '/tmp/hls/output%03d.ts',  # Path for .ts segments
+        '/tmp/hls/output.m3u8'  # Path for .m3u8 playlist
+    ]
+
+    # Start the FFmpeg subprocess
+    ffmpeg_process = subprocess.Popen(ffmpeg_command, stdin=subprocess.PIPE)
+
+    # %%
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to read frame from stream.")
+            break
+
+        # Run YOLO inference on the frame
+        results = model(frame)
+
+        # Plot the results on the frame (BGR format)
+        labeled_frame = results[0].plot()
+
+        # Send the processed frame to FFmpeg via stdin
+        try:
+            ffmpeg_process.stdin.write(labeled_frame.tobytes())
+        except BrokenPipeError:
+            print("FFmpeg process failed. Exiting.")
+            break
+
+    cap.release()
+    ffmpeg_process.stdin.close()
+    ffmpeg_process.wait()
