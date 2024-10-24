@@ -55,7 +55,7 @@ data:
             with st.spinner("Waiting for drone to connect..."):
                 response = requests.head(hls_url, timeout=5)
                 if response.status_code == 200:
-                    # If the stream is live, display the video player
+                # If the stream is live, display the video player
                     video_html = f"""
                         <link href="https://vjs.zencdn.net/7.11.4/video-js.css" rel="stylesheet" />
                         <video-js id="hls-video" class="vjs-default-skin" controls autoplay width="700" height="400">
@@ -63,11 +63,11 @@ data:
                         </video-js>
                         <script src="https://vjs.zencdn.net/7.11.4/video.js"></script>
                         <script>
-                            var player = videojs('hls-video', {{
-                                controlBar: {{
+                            var player = videojs('hls-video', {{ "{{" }} 
+                                controlBar: {{ "{{" }} 
                                     volumePanel: false  // Disable the volume slider
-                                }}
-                            }});
+                                {{ "}}" }} 
+                            {{ "}}" }} );
                             player.play();
                         </script>
                     """
